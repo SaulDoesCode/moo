@@ -1,3 +1,3 @@
 ` hello from api`
 
-@ utils
+@ ../utils
