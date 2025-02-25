@@ -24,6 +24,8 @@ my_struct:
 ;
 
 ```
+![image](https://github.com/user-attachments/assets/b5b23b06-f1c5-4d4b-9057-1938b905e72c)
+
 
 install vlang, gcc or clang, as well as the relevant dependencies vlang expects
 
