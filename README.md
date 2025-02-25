@@ -5,3 +5,22 @@ moo-lang.. smol, simple
 - esolang feel
 - extensible
 - ideosyncratic
+
+# spec so far
+```moo
+@ <import-filename/with/slashes/and/without.moo ext>
+<function> <args ...string/f64/bool>
+<label>: <function> <args ...string/f64/bool>
+| comments between these up right characters |
+
+str moo "uwu uwu"                     | str is a function and moo is its first argument and the string is its second (this is just a comment) | 
+` ~moo `
+| see? ^- `these ticks will print out what's between them and template/replace/read from the scope with ~` |
+
+my_struct:
+  prop 5.55
+  msg "let me, love you, all the... way through"
+  subspace: x 3 y 32 z 0 moniker "warra-machine", | the : delimits sub-spaces and is closed by a comma, commas are otherwise not wanted |
+;
+
+```
