@@ -24,3 +24,8 @@ my_struct:
 ;
 
 ```
+
+install vlang, gcc or clang, as well as the relevant dependencies vlang expects
+
+v -prod moo.v
+./moo
