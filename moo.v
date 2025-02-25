@@ -1,6 +1,7 @@
 import io
 import net
 import os
+import os.cmdline
 import crypto.rand
 import sokol.sapp
 import math
@@ -581,7 +582,8 @@ fn main() {
 	}()
 
 	// tb.interpret() run_script
-	tb.interpret(os.read_file("./graphics.moo") or { panic(err) })
+	mut src := cmdline.option(os.args, 'src', "./main.moo").str()
+	tb.interpret(os.read_file(src) or { panic(err) })
 
 	for {
 		mut socket := server.accept() or { panic(err) }
