@@ -27,6 +27,7 @@ pub  mut:
 	wok string
 	str []string
 	working f64
+	working_bool bool
 	stack [][]u8
 	code []string
 	strings map[string]string
@@ -131,15 +132,16 @@ fn (mut tb TOOB) interpret(source string) {
     mut current_args := []string{cap: 32}
     mut working_buf := []u8{cap: 512}
 	mut stored_label := ""
+	mut conditional_skip := false
 	mut i := -1
 	for {
-		if i >= source.len { break } else { i++ }
+		if i > source.len { break } else { i++ }
 		mut c := source[i] or { break }
 		match mode {
 			0 { // default
 				match c {
 					`:` {
-						do_op: if current_op != "" {
+						do_op: if current_op != "" && !conditional_skip {
 							if sub_mode == 1 && stored_label != "" {
 								//println("labelcatch: running current_op ${stored_label}: ${current_op} with ${current_args}")
 								if stored_label == "2" {
@@ -172,6 +174,8 @@ fn (mut tb TOOB) interpret(source string) {
 							current_args.clear()
 							sub_mode = 0
 						}
+
+						conditional_skip = false
 						stored_label = working_buf.bytestr()
 						working_buf.clear()
 						//println("found label called ${stored_label}")
@@ -217,7 +221,63 @@ fn (mut tb TOOB) interpret(source string) {
 					`"` { mode = 1 } // quote
 					`|` { mode = 2 } // comment
 					`\`` { mode = 3 } // print
-					`?` { mode = 4 } // struct
+					`$` { mode = 4 } // struct
+					`=` {
+						mut rest := "" // print("\nat i ${i}")
+						mut tmp := []string{}
+						mut quoted := false
+						for {
+							i += 1
+							if i == source.len { break }
+							c = source[i]
+							if (c == ` ` || c == `\n`) && tmp.len != 0 {
+								if !quoted {
+									tmp << rest.trim_space()
+									rest = ""
+									eq_check: if tmp.len == 2 {
+										if tmp[0][0] == `~` {
+											tmp[0] = tb.strings[tmp[0].trim_left("~")]
+										}
+										if tmp[1][0] == `~` {
+											tmp[1] = tb.strings[tmp[1].trim_left("~")]
+										}
+										tb.working_bool = tmp[0] == tmp[1]
+										break
+									}
+								} else {
+									panic("syntax error: conditional quotes are uneven, put one in at the end ${i}")
+								}
+							} else if c == `"` {
+								if quoted {
+									quoted = false
+									tmp << rest
+									rest = ""
+									unsafe { goto eq_check }
+								} else {
+									quoted = true
+								}
+							} else if c == `?` || c == `!` {
+								if rest.len > 0 {
+									tmp << rest.trim('"').trim_space()
+								}
+								conditional_skip = if c == `!` { tb.working_bool } else { !tb.working_bool }
+								unsafe { goto eq_check }
+							} else {
+								if c == ` ` && !quoted && rest.len > 0 {
+									tmp << rest.trim_left(" ")
+									rest = ""
+									unsafe { goto eq_check }
+								}
+								rest += c.ascii_str()
+							}
+						}
+					}
+					`?` {
+						conditional_skip = !tb.working_bool
+					}
+					`!` {
+						conditional_skip = tb.working_bool
+					}
 					`;` { stored_label = "" }
 					else {
 						if c == ` ` || c == `\n` {
@@ -225,7 +285,7 @@ fn (mut tb TOOB) interpret(source string) {
 							mut wok := working_buf.bytestr().trim_space()
 							working_buf.clear()
 							if wok.len == 0 { continue }
-							if wok in tb.ops {
+							if wok in tb.ops && !conditional_skip {
 								if sub_mode == 1 && stored_label != "" {
 									//println("labelcatch: running current_op ${stored_label}: ${current_op} with ${current_args}")
 									if stored_label == "2" {
@@ -286,40 +346,39 @@ fn (mut tb TOOB) interpret(source string) {
 			3 { // printing
 				match c {
 					`\`` {
-						if current_op != "" {
-							if current_op != "" {
+						if current_op != "" && !conditional_skip {
 							if sub_mode == 1 && stored_label != "" {
-									//println("labelcatch: running current_op ${stored_label}: ${current_op} with ${current_args}")
-									if stored_label == "2" {
-										mut args := []string{}
-										mut args2 := []string{}
-										mut twiddle := false
-										for arg in current_args {
-											if twiddle {
-												args2 << arg
-												twiddle = false
-											} else {
-												args << arg
-												twiddle = true
-											}
-										}
-										tb.run(current_op, ...args)
-										tb.run(current_op, ...args2)
+							//println("labelcatch: running current_op ${stored_label}: ${current_op} with ${current_args}")
+							if stored_label == "2" {
+								mut args := []string{}
+								mut args2 := []string{}
+								mut twiddle := false
+								for arg in current_args {
+									if twiddle {
+										args2 << arg
+										twiddle = false
 									} else {
-										code := tb.run(current_op, ...current_args) 
-										if code != none && stored_label != "" {
-											tb.state[stored_label] = int(code)
-										}
+										args << arg
+										twiddle = true
 									}
-								} else {
-									//println("labelcatch: running ${current_op} with ${current_args}")
-									tb.run(current_op, ...current_args)
 								}
-								current_op = ""
-								stored_label = ""
-								current_args.clear()
-								sub_mode = 0
+								tb.run(current_op, ...args)
+								tb.run(current_op, ...args2)
+							} else {
+								code := tb.run(current_op, ...current_args) 
+								if code != none && stored_label != "" {
+									tb.state[stored_label] = int(code)
+								}
 							}
+						} else {
+							//println("labelcatch: running ${current_op} with ${current_args}")
+							tb.run(current_op, ...current_args)
+						}
+						conditional_skip = false
+						current_op = ""
+						stored_label = ""
+						current_args.clear()
+						sub_mode = 0
 						}
 
 						mut final_print := ""
@@ -366,7 +425,40 @@ fn (mut tb TOOB) interpret(source string) {
 			}
 		}
 	}
-	if current_op != "" { unsafe { goto do_op } }
+	if current_op != "" && !conditional_skip { 
+		if sub_mode == 1 && stored_label != "" {
+			//println("labelcatch: running current_op ${stored_label}: ${current_op} with ${current_args}")
+			if stored_label == "2" {
+				mut args := []string{}
+				mut args2 := []string{}
+				mut twiddle := false
+				for arg in current_args {
+					if twiddle {
+						args2 << arg
+						twiddle = false
+					} else {
+						args << arg
+						twiddle = true
+					}
+				}
+				tb.run(current_op, ...args)
+				tb.run(current_op, ...args2)
+			} else {
+				code := tb.run(current_op, ...current_args) 
+				if code != none && stored_label != "" {
+					tb.state[stored_label] = int(code)
+				}
+			}
+		} else {
+			//println("labelcatch: running ${current_op} with ${current_args}")
+			tb.run(current_op, ...current_args)
+		}
+		conditional_skip = false
+		current_op = ""
+		stored_label = ""
+		current_args.clear()
+		sub_mode = 0
+	}
 	println("finish'd")
 }
 
@@ -379,6 +471,7 @@ fn toob() TOOB {
 		working: 0,
 		wok: "",
 		ev_wok: "",
+		working_bool: false,
 		draw_calls: map[int] fn (mut TOOB) {},
 		state: map[string]int{},
 		events: map[string][]fn(ev &gg.Event)
@@ -508,6 +601,34 @@ fn main() {
 		return none
 	}
 
+	tb.ops["same"] = fn (mut tb TOOB, args ...string) ?f64 {
+		if args[0] == args[1] {
+			tb.run(args[2])
+		} else {
+			tb.run(args[3])
+		}
+		return none
+	}
+		/*
+	tb.ops["="] = fn (mut tb TOOB, args ...string) ?f64 {
+		tb.working_bool = args[0] == args[1]
+		println("= ${args}: ${tb.working_bool}")
+		return none
+	}
+
+	tb.ops["?"] = fn (mut tb TOOB, args ...string) ?f64 {
+		println("? ${args}: ${tb.working_bool}")
+		if tb.working_bool {
+			mut params := []string{}
+			for i, arg in args {
+				if i != 0 {
+					params << arg
+				}
+			}
+			tb.run(args[0], ...params)
+		}
+		return none
+	}*/
 
 	tb.ops["*f64"] = fn (mut tb TOOB, args ...string) ?f64 {
 		if prop := tb.read_f64(args[0]) {
@@ -571,7 +692,7 @@ fn main() {
 	spawn tb.gg.run()
 	mut server := net.listen_tcp(.ip6, ':16842') or { panic(err) }
 	laddr := server.addr() or { panic(err) }
-	eprintln('2b.v runing on ${laddr} ...')
+	eprintln('moo.v runing on ${laddr} ...')
 	mut sockets := chan &net.TcpConn{}
 	spawn fn [mut sockets, mut tb]() {
 		for {
