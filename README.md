@@ -24,7 +24,35 @@ my_struct:
 ;
 
 ```
+
 ![image](https://github.com/user-attachments/assets/b5b23b06-f1c5-4d4b-9057-1938b905e72c)
+
+
+```moo
+`hello wurld`
+
+str moo "yes"
+
+`is there moo? ~moo`
+
+box 50 50 40 40 #cccfff
+
+
+= yes ~moo
+? txt "yes yes: control flow" 270 300 24 24 #e9801f
+
+
+
+= no no1
+! txt "yes no no1: don't match" 260 320 24 24 #e9801f
+
+`yee`
+
+box 150 150 140 70 #da2121
+
+```
+
+![image](https://github.com/user-attachments/assets/6a3b69ea-5f37-4c3a-a90c-65b6a65ab044)
 
 
 install vlang, gcc or clang, as well as the relevant dependencies vlang expects
