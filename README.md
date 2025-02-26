@@ -50,6 +50,13 @@ box 50 50 40 40 #cccfff
 
 box 150 150 140 70 #da2121
 
+str index "hello my index"
+
+write "./index.txt" ~index
+
+read "./index.txt" index
+
+`here's the score: index.txt reads ~index`
 ```
 
 ![image](https://github.com/user-attachments/assets/6a3b69ea-5f37-4c3a-a90c-65b6a65ab044)
