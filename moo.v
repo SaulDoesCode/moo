@@ -65,7 +65,6 @@ fn (mut tb TOOB) read_f64(moniker string) ?f64 {
 }
 
 fn (mut tb TOOB) store_handle(label string, contents []string) ?f64 {
-    
     mut subspace_stack := []string{} // Stack for nested subspaces (e.g., ["work", "sub"])
     mut i := 0
 
@@ -601,34 +600,20 @@ fn main() {
 		return none
 	}
 
-	tb.ops["same"] = fn (mut tb TOOB, args ...string) ?f64 {
-		if args[0] == args[1] {
-			tb.run(args[2])
+	tb.ops["write"] = fn (mut tb TOOB, args ...string) ?f64 {
+		if args[1][0] == `~` {
+			os.write_file(args[0], tb.strings[args[1].trim_left("~")]) or { panic(err) }
 		} else {
-			tb.run(args[3])
+			os.write_file(args[0], args[1]) or { panic(err) }
 		}
-		return none
-	}
-		/*
-	tb.ops["="] = fn (mut tb TOOB, args ...string) ?f64 {
-		tb.working_bool = args[0] == args[1]
-		println("= ${args}: ${tb.working_bool}")
 		return none
 	}
 
-	tb.ops["?"] = fn (mut tb TOOB, args ...string) ?f64 {
-		println("? ${args}: ${tb.working_bool}")
-		if tb.working_bool {
-			mut params := []string{}
-			for i, arg in args {
-				if i != 0 {
-					params << arg
-				}
-			}
-			tb.run(args[0], ...params)
-		}
+	tb.ops["read"] = fn (mut tb TOOB, args ...string) ?f64 {
+		contents := os.read_file(args[0]) or { panic(err) }
+		tb.strings[args[1]] = contents
 		return none
-	}*/
+	}
 
 	tb.ops["*f64"] = fn (mut tb TOOB, args ...string) ?f64 {
 		if prop := tb.read_f64(args[0]) {
